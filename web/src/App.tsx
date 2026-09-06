@@ -47,7 +47,13 @@ const useOpened = () => {
     window.history.pushState(null, "", "/");
     setOpened(undefined);
   };
-  return { opened, open, close };
+  // Arrow-stepping replaces rather than pushes: browsing is one visit, and Back
+  // should return to the board, not replay every step of it.
+  const step = (number: number) => {
+    window.history.replaceState(null, "", `/${number}`);
+    setOpened(number);
+  };
+  return { opened, open, close, step };
 };
 
 const Chip = ({ kind, children }: { kind?: string; children: React.ReactNode }) => (
@@ -90,8 +96,19 @@ const Column = ({
 );
 
 /** One task, whole and full-screen: metadata line, the rejection reason where there is
- *  one, the body. Escape is the way back — the same gesture every overlay owes. */
-const Opened = ({ number, onClose }: { number: number; onClose: () => void }) => {
+ *  one, the body. Escape is the way back, and the arrows walk the board's own order —
+ *  column by column, planned through rejected, each column as it is drawn. */
+const Opened = ({
+  number,
+  order,
+  onStep,
+  onClose,
+}: {
+  number: number;
+  order: readonly number[];
+  onStep: (n: number) => void;
+  onClose: () => void;
+}) => {
   const [task, setTask] = useState<Task | undefined>();
   const [missing, setMissing] = useState(false);
 
@@ -99,11 +116,19 @@ const Opened = ({ number, onClose }: { number: number; onClose: () => void }) =>
     const key = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         onClose();
+        return;
+      }
+      if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
+        const at = order.indexOf(number);
+        const to = order[at + (event.key === "ArrowRight" ? 1 : -1)];
+        if (at >= 0 && to !== undefined) {
+          onStep(to);
+        }
       }
     };
     window.addEventListener("keydown", key);
     return () => window.removeEventListener("keydown", key);
-  }, [onClose]);
+  }, [number, order, onStep, onClose]);
   useEffect(() => {
     let stale = false;
     setTask(undefined);
@@ -162,7 +187,7 @@ const Opened = ({ number, onClose }: { number: number; onClose: () => void }) =>
 export const App = () => {
   const [board, setBoard] = useState<Board | undefined>();
   const [failed, setFailed] = useState(false);
-  const { opened, open, close } = useOpened();
+  const { opened, open, close, step } = useOpened();
 
   useEffect(() => {
     void fetch("/api/board")
@@ -201,7 +226,18 @@ export const App = () => {
           />
         ))}
       </div>
-      {opened !== undefined && <Opened number={opened} onClose={close} />}
+      {opened !== undefined && (
+        <Opened
+          number={opened}
+          // The board's reading order, flattened: the same statuses left to right,
+          // each column exactly as it is drawn.
+          order={board.statuses.flatMap((status) =>
+            board.tasks.filter((task) => task.status === status).map((task) => task.number),
+          )}
+          onStep={step}
+          onClose={close}
+        />
+      )}
     </>
   );
 };
