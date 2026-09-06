@@ -89,10 +89,21 @@ const Column = ({
   </section>
 );
 
-/** One task, whole: metadata line, the rejection reason where there is one, the body. */
+/** One task, whole and full-screen: metadata line, the rejection reason where there is
+ *  one, the body. Escape is the way back — the same gesture every overlay owes. */
 const Opened = ({ number, onClose }: { number: number; onClose: () => void }) => {
   const [task, setTask] = useState<Task | undefined>();
   const [missing, setMissing] = useState(false);
+
+  useEffect(() => {
+    const key = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        onClose();
+      }
+    };
+    window.addEventListener("keydown", key);
+    return () => window.removeEventListener("keydown", key);
+  }, [onClose]);
   useEffect(() => {
     let stale = false;
     setTask(undefined);
@@ -116,10 +127,11 @@ const Opened = ({ number, onClose }: { number: number; onClose: () => void }) =>
 
   return (
     <aside className="opened">
+      <div className="inner">
       <div className="openedbar">
         <span className="num">{number}</span>
         <span className="grow" />
-        <button className="close" onClick={onClose} aria-label="Close">
+        <button className="close" onClick={onClose} aria-label="Close (Esc)">
           ✕
         </button>
       </div>
@@ -142,6 +154,7 @@ const Opened = ({ number, onClose }: { number: number; onClose: () => void }) =>
           </article>
         </>
       )}
+      </div>
     </aside>
   );
 };
@@ -178,7 +191,7 @@ export const App = () => {
       <header>
         <h1>tasks</h1>
       </header>
-      <div className={opened === undefined ? "board" : "board narrowed"}>
+      <div className="board">
         {board.statuses.map((status) => (
           <Column
             key={status}
