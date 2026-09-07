@@ -22,9 +22,11 @@ property of the reader, so it lives in `localStorage` rather than the URL, and a
 share never imposes your theme on whoever opens it.
 
 Two views over the same tree, and the URL carries which: the **board** of four columns,
-and a flat **list** (`?view=list`) for seeing everything at once. The list's columns sort
-— ascending, descending, then back to the board's own order — and that is in the URL too
-(`&sort=priority&dir=desc`), so "everything by priority" is a thing you can link to.
+and a flat **list** (`?view=list`) for seeing everything at once. The list's columns sort,
+ascending or descending, and that is in the URL too (`&sort=priority&dir=desc`), so
+"everything by priority" is a thing you can link to. The board's own order is not a hidden
+mode you cycle back to — it *is* status-ascending, the default, so clicking "Status" gets
+you home.
 Priority, size and status sort by rank rather than alphabetically, because high/low/medium
 is not an order. Status shows as a progress bar: grey planned, yellow active, green done,
 red rejected. A blocker's number is a button that opens it. The arrow keys step through an

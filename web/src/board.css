@@ -127,6 +127,7 @@ header h1 { font-size: 1.25rem; margin: 0; }
            vertical-align: baseline; }
 .list tr:hover td { background: var(--hover); }
 .list .colnum { width: 3rem; color: var(--dim); font-variant-numeric: tabular-nums; }
+.list .colowner { width: 4rem; }
 /* Finished and abandoned work stays readable but stops competing for attention. */
 .list tr.done .rowtitle, .list tr.rejected .rowtitle { color: var(--dim); }
 .rowtitle { border: 0; background: none; padding: 0; font: inherit; text-align: left;

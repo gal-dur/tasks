@@ -17,14 +17,14 @@ import remarkGfm from "remark-gfm";
 
 type View = "board" | "list";
 type Theme = "light" | "dark";
-type SortKey = "number" | "title" | "status" | "priority" | "size" | "blocked";
+type SortKey = "number" | "title" | "owner" | "status" | "priority" | "size" | "blocked";
 interface Sort {
   readonly key: SortKey;
   readonly dir: "asc" | "desc";
 }
 
 const SORT_KEYS: readonly SortKey[] = [
-  "number", "title", "status", "priority", "size", "blocked",
+  "number", "title", "owner", "status", "priority", "size", "blocked",
 ];
 
 /**
@@ -47,6 +47,9 @@ const compare = (a: Task, b: Task, key: SortKey, statuses: readonly string[]): n
       return a.number - b.number;
     case "title":
       return a.title.localeCompare(b.title);
+    case "owner":
+      // Yours first when ascending: the column exists to answer "what is waiting on me".
+      return Number(b.is_human ?? false) - Number(a.is_human ?? false);
     case "status":
       return statuses.indexOf(a.status) - statuses.indexOf(b.status);
     case "priority":
@@ -69,12 +72,9 @@ const compare = (a: Task, b: Task, key: SortKey, statuses: readonly string[]): n
  */
 const sortedRows = (
   rows: readonly Task[],
-  sort: Sort | undefined,
+  sort: Sort,
   statuses: readonly string[],
 ): readonly Task[] => {
-  if (sort === undefined) {
-    return rows;
-  }
   const natural = new Map(rows.map((task, at) => [task.number, at]));
   return [...rows].sort((a, b) => {
     const by = compare(a, b, sort.key, statuses) * (sort.dir === "desc" ? -1 : 1);
@@ -157,21 +157,30 @@ const useOpened = () => {
  * How the list is ordered, in the URL beside the view.
  *
  * Same reasoning as the view: a sort changes *what is being looked at*, so "everything by
- * priority" is a thing worth linking to. Absent means the board's own order, and clicking
- * a column cycles ascending, descending, back to that — because the natural order is
- * meaningful here and a reader should be able to get back to it without reloading.
+ * priority" is a thing worth linking to.
+ *
+ * **A column has two states, ascending and descending, and that is all.** The board's own
+ * order needs no third state to return to, because it *is* one of the two: statuses in
+ * column order, ties falling back to the order the server sent (priority, then arrival).
+ * So the default below is a real, visible sort rather than a hidden mode, and clicking
+ * "Status" twice always gets you home.
  */
-const sortInSearch = (): Sort | undefined => {
+const DEFAULT_SORT: Sort = { key: "status", dir: "asc" };
+
+const isDefault = (sort: Sort): boolean =>
+  sort.key === DEFAULT_SORT.key && sort.dir === DEFAULT_SORT.dir;
+
+const sortInSearch = (): Sort => {
   const search = new URLSearchParams(window.location.search);
   const key = search.get("sort");
   if (key === null || !SORT_KEYS.includes(key as SortKey)) {
-    return undefined;
+    return DEFAULT_SORT;
   }
   return { key: key as SortKey, dir: search.get("dir") === "desc" ? "desc" : "asc" };
 };
 
 const useSort = () => {
-  const [sort, setState] = useState<Sort | undefined>(sortInSearch);
+  const [sort, setState] = useState<Sort>(sortInSearch);
   useEffect(() => {
     const read = () => setState(sortInSearch());
     window.addEventListener("popstate", read);
@@ -179,14 +188,12 @@ const useSort = () => {
   }, []);
 
   const by = (key: SortKey) => {
-    const next: Sort | undefined =
-      sort?.key !== key
-        ? { key, dir: "asc" }
-        : sort.dir === "asc"
-          ? { key, dir: "desc" }
-          : undefined;
+    // A new column starts ascending; the current one flips. Nothing else.
+    const next: Sort =
+      sort.key === key ? { key, dir: sort.dir === "asc" ? "desc" : "asc" } : { key, dir: "asc" };
     const search = new URLSearchParams(window.location.search);
-    if (next === undefined) {
+    // The default stays out of the address, so a plain link is still a plain link.
+    if (isDefault(next)) {
       search.delete("sort");
       search.delete("dir");
     } else {
@@ -335,8 +342,7 @@ const Progress = ({ status }: { status: string }) => (
   </span>
 );
 
-/** A column header that sorts. Ascending, then descending, then back to the board's own
- *  order — the third click matters, because that order is the one with meaning. */
+/** A column header that sorts: ascending, then descending, and nothing else. */
 const HeadCell = ({
   label,
   sortKey,
@@ -346,11 +352,11 @@ const HeadCell = ({
 }: {
   label: string;
   sortKey: SortKey;
-  sort: Sort | undefined;
+  sort: Sort;
   onSort: (key: SortKey) => void;
   className?: string;
 }) => {
-  const active = sort?.key === sortKey;
+  const active = sort.key === sortKey;
   return (
     <th
       className={className ?? ""}
@@ -381,7 +387,7 @@ const List = ({
   onOpen,
 }: {
   tasks: readonly Task[];
-  sort: Sort | undefined;
+  sort: Sort;
   onSort: (key: SortKey) => void;
   onOpen: (n: number) => void;
 }) => (
@@ -391,6 +397,7 @@ const List = ({
         <tr>
           <HeadCell label="#" sortKey="number" sort={sort} onSort={onSort} className="colnum" />
           <HeadCell label="Title" sortKey="title" sort={sort} onSort={onSort} />
+          <HeadCell label="Owner" sortKey="owner" sort={sort} onSort={onSort} className="colowner" />
           <HeadCell label="Status" sortKey="status" sort={sort} onSort={onSort} />
           <HeadCell label="Priority" sortKey="priority" sort={sort} onSort={onSort} />
           <HeadCell label="Size" sortKey="size" sort={sort} onSort={onSort} />
@@ -405,8 +412,12 @@ const List = ({
               <button className="rowtitle" onClick={() => onOpen(task.number)}>
                 {task.title}
               </button>
-              {task.is_human && <Chip kind="human">you</Chip>}
               {task.rejection_reason && <Chip kind="rejected">reasoned</Chip>}
+            </td>
+            <td className="colowner">
+              {/* Blank where the work is the agent's — writing "agent" on forty rows to
+                  say "nothing is waiting on you" is noise, not information. */}
+              {task.is_human && <Chip kind="human">you</Chip>}
             </td>
             <td>
               <Progress status={task.status} />
