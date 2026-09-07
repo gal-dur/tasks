@@ -1,17 +1,20 @@
 ---
 name: tasks
-description: Manage this project's work items under tasks/ — create a task when work is planned or discussed, move it between planned/active/done/rejected, look up whether something already exists as a task, and block re-proposing rejected work without an explicit override. Use whenever the user proposes, discusses, starts, finishes or abandons a piece of work, or asks what is planned or in flight.
+description: Manage and execute this project's work items under tasks/ — create a task when work is planned or discussed, move it between planned/active/done/rejected, look up whether something already exists as a task, and block re-proposing rejected work without an explicit override. Also covers working a task to completion in an isolated git worktree and merging it back on green, including running several tasks in parallel. Use whenever the user proposes, discusses, starts, finishes or abandons a piece of work, asks what is planned or in flight, or says "work on task N" / "pick up a task" / "do this in a worktree".
 ---
 
 # Task management
 
 ## When to use this
 
-**Use this when** work is proposed, discussed, started, finished or abandoned; or when
-checking whether something already exists as a task.
+**Use this when** work is proposed, discussed, started, finished or abandoned; when
+checking whether something already exists as a task; or when actually sitting down to
+implement one.
 
 Duplicated in the host project's `AGENTS.md` so the trigger is in force without loading
-anything — and kept here so the skill travels to another repository intact.
+anything — and kept here so the skill travels to another repository intact. Nothing below
+names a language, a build tool or a container runtime: where a project's own commands are
+needed, the project states them in `AGENTS.md` and this skill defers to that.
 
 Work lives in `tasks/` as one markdown file per item. The **folder is the status**, git
 is the history — no status field, no timestamps, no changelog inside the file.
@@ -102,6 +105,123 @@ git mv tasks/planned/7-drawn-routes.md tasks/active/7-drawn-routes.md
 Keep the TODO list current *while* working, not in a tidy-up afterwards. A task that
 lags reality is worse than no task, because it is believed.
 
+## Working a task
+
+**Default to a git worktree for any task you implement.** One task, one worktree, one
+branch, merged back on green. It keeps the main checkout untouched — no stashing to switch
+context — and it is what lets two tasks be in flight without editing each other's files.
+
+The exception is honest: for a one-line fix on a clean tree, a worktree is ceremony. Judge
+by whether the work will survive a single sitting, not by the size of the diff you expect.
+
+### Claim the task before branching
+
+Move the task to `tasks/active/` **on the shared branch, and commit that move on its own**,
+before creating the worktree. Two reasons, and the second is the one that bites:
+
+- Anyone else looking at the tree can see the work is taken.
+- **Task numbers are assigned from what exists.** Two worktrees each creating a task will
+  both take the same next integer, and the collision only surfaces at merge. Numbers must
+  be minted on the shared branch, never inside an isolated one.
+
+### Create the worktree
+
+Name it for the task — `74-aggregation-legality`, not `feature-x` — so `git worktree list`
+reads as a list of work in progress. Branch from the shared branch's tip.
+
+If the agent harness provides a worktree tool, prefer it: it will place the worktree
+consistently and clean up on exit. Otherwise `git worktree add <path> -b <branch>`.
+
+### A worktree contains only tracked files
+
+Everything gitignored — dependency trees, build output, tool caches, local env files — is
+absent from a fresh worktree. Two consequences, both worth handling before the first
+command:
+
+- **Caches keyed by directory name will cold-start.** If the project's tooling derives a
+  cache or container identity from the working directory, pin it explicitly so every
+  worktree shares one warm cache rather than each building its own from scratch. A project
+  that cares about this says so in `AGENTS.md`; if it does, follow it exactly.
+- **Anything the project needs that git does not carry** — credentials, certificates,
+  generated schemas, seed data — has to be copied in or regenerated. Find out which before
+  concluding the code is broken.
+
+### Singleton resources serialise; plan around them
+
+Checks that run as ephemeral processes and bind no ports parallelise freely. Anything that
+binds a fixed port, writes a shared database, or drives the one browser on the machine does
+not — a second worktree starting the same dev stack collides.
+
+So: run the parallel-safe checks in every worktree, and treat the singleton ones as a
+resource to take, use and hand back. Never start a second instance "just to check". If the
+project has a scheme for per-task instances, `AGENTS.md` will describe it; otherwise
+serialise deliberately and say so rather than discovering the collision.
+
+### Verify before merging
+
+In this order, and none of it optional:
+
+1. The project's own full check — the one that covers *every* component, not only the one
+   you touched. A change that type-checks locally can still break a caller elsewhere.
+2. The tests for what you changed.
+3. **If the change is visible, it has been seen working** — not merely covered by a green
+   test. Tests assert what someone thought to assert; a screen asserts itself.
+
+A failing check is fixed *in the worktree*. Never merge intending to fix on the shared
+branch.
+
+### Finish the task file, then land one commit
+
+Before landing, in the worktree: tick the TODO items that actually landed and leave the
+rest unticked, record superseded approaches in **Technical notes**, carry any lasting rule
+into `AGENTS.md`, and `git mv` the task into `tasks/done/`. This is the same lifecycle as
+above — it simply happens inside the worktree, as part of the work rather than after it.
+
+**One task, one commit, and no merge commits.** Commit as freely as you like *inside* the
+worktree — those are working notes, and nobody else will read them — but what reaches the
+shared branch is a single commit whose message names the task. The task file moving from
+`active/` to `done/` inside that same commit is what records that this was one task; a
+merge bubble would say the same thing less legibly, and it makes the history harder to read
+back later.
+
+```bash
+git switch <shared branch>
+git merge --squash <branch>
+# verify here — see below — then:
+git commit
+```
+
+**Verify after staging and before committing.** `--squash` stages the work without
+committing, which is precisely the right moment: two branches can each be green on their
+own and still conflict semantically — a rename in one against a new caller in the other
+type-checks only once both are present. Run the project's full check against the staged
+tree. If the squash conflicts, merge the shared branch *into* the task branch first,
+re-verify there, then squash clean.
+
+### Clean up
+
+Remove the worktree once the commit has landed; keep it only if the user wants to return to
+it. Never remove one holding uncommitted work without first saying what would be lost.
+
+A squashed branch still looks unmerged to git, because no commit on the shared branch has
+it as an ancestor. Deleting it therefore needs `git branch -D`, and git's "not fully merged"
+warning is expected here rather than a sign something went wrong — confirm the work is in
+the shared branch's log first, then delete without ceremony.
+
+### What conflicts between parallel worktrees
+
+Predictable, and worth steering around rather than resolving repeatedly:
+
+- **`tasks/` itself.** Two worktrees moving or adding task files collide constantly. This
+  is why numbers are minted on the shared branch and why the move to `active/` is committed
+  before branching.
+- **`AGENTS.md`** — every finishing task wants to append a rule.
+- **Dependency manifests and lock files** — any two tasks that add a package.
+- **Shared infrastructure config** — build files, CI, container definitions.
+
+Work that respects the project's own directory boundaries merges without conflict. Work
+that touches the files above should, where possible, be one task at a time.
+
 ## Behaviours this skill owes the user
 
 **Point at existing tasks.** Before answering a request to build something, check
@@ -125,3 +245,8 @@ changed to justify the reversal.
 
 **Do not silently renumber, merge or delete tasks.** Superseded work is rejected with a
 reason pointing at what replaced it.
+
+**Report what was actually verified.** When handing back a finished task, state which
+checks ran and their result, whether a visible change was seen working, and anything that
+was skipped. A report implying more verification than happened is worse than no report,
+because it is acted on.
