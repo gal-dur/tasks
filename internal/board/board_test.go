@@ -72,6 +72,43 @@ func TestLoadReadsWhatTheFilesSay(t *testing.T) {
 	}
 }
 
+// A human task is a task like any other to the scanner — the flag is metadata it carries,
+// not a second kind of file. What the flag *means* is the skill's business; what this has
+// to guarantee is that it survives the round trip, because an agent that reads `false`
+// where the file says `true` would take work that is not its own.
+func TestAHumanTaskCarriesItsFlag(t *testing.T) {
+	root := tree(t)
+	path := filepath.Join(root, "planned", "80-decide-the-hosting.md")
+	body := "---\npriority: high\nis_human: true\n---\n\n# Decide the hosting\n\nYours.\n"
+	if err := os.WriteFile(path, []byte(body), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	tasks, err := Load(root)
+	if err != nil {
+		t.Fatalf("load: %v", err)
+	}
+	var found *Task
+	for i := range tasks {
+		if tasks[i].Number == 80 {
+			found = &tasks[i]
+		}
+	}
+	if found == nil {
+		t.Fatal("the human task was not loaded at all")
+	}
+	if !found.IsHuman {
+		t.Fatalf("is_human lost in parsing: %+v", found)
+	}
+	// Absence must read as false rather than as unset-and-therefore-anything: every
+	// other task in the tree is the agent's to take.
+	for _, task := range tasks {
+		if task.Number != 80 && task.IsHuman {
+			t.Fatalf("task %d claims to be human without saying so", task.Number)
+		}
+	}
+}
+
 func TestAMissingStatusFolderIsEmptyNotAnError(t *testing.T) {
 	root := t.TempDir() // no folders at all
 	tasks, err := Load(root)

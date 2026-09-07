@@ -1,8 +1,54 @@
-:root { --ink: #1a1a1a; --dim: #667; --line: #e3e3e8; --card: #fff; --wash: #f5f5f7; }
+/* Light is the base palette; dark redefines the same names and nothing else. Every
+   colour below is a token for exactly that reason — a literal anywhere would be a value
+   that only works in one theme, and the bug it causes (one theme's text on the other's
+   ground) is invisible until somebody switches. */
+:root {
+  --ink: #1a1a1a; --dim: #667; --line: #e3e3e8; --card: #fff; --wash: #f5f5f7;
+  --accent: #0b57d0;
+  --high: #c4442a; --medium: #8a6900; --medium-line: #b58a00;
+  --faint: #999; --faint-ink: #777;
+  --human: #2f6f4f; --on-human: #fff;
+  /* Status, as colour: grey planned, yellow active, green done, red rejected. Planned's
+     grey is the empty track itself — a bar that filled grey would read as finished. */
+  --track: #dcdde3;
+  --st-active: #d8a01a; --st-done: #3f8f5f; --st-rejected: #c4442a;
+  /* Text on an --ink-filled swatch. Flips with the theme, because --ink does. */
+  --on-ink: #fff;
+  --hover: rgba(0, 0, 0, 0.025);
+}
+
+/* The un-stamped document — the default — follows the system. Guarded so that an
+   explicit light choice still wins on a dark OS. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --ink: #e6e7ea; --dim: #969cab; --line: #2b2e35; --card: #191b20; --wash: #121317;
+    --accent: #7cacf8;
+    --high: #ef8a72; --medium: #dcb04a; --medium-line: #a8842c;
+    --faint: #565b64; --faint-ink: #878d97;
+    --human: #4e9b74; --on-human: #0d1a13;
+    --track: #33373f;
+    --st-active: #dcb04a; --st-done: #58a97e; --st-rejected: #ef8a72;
+    --on-ink: #121317;
+    --hover: rgba(255, 255, 255, 0.045);
+  }
+}
+
+/* And the explicit choice, which must beat a light OS as well as a dark one. */
+:root[data-theme="dark"] {
+  --ink: #e6e7ea; --dim: #969cab; --line: #2b2e35; --card: #191b20; --wash: #121317;
+  --accent: #7cacf8;
+  --high: #ef8a72; --medium: #dcb04a; --medium-line: #a8842c;
+  --faint: #565b64; --faint-ink: #878d97;
+  --human: #4e9b74; --on-human: #0d1a13;
+  --track: #33373f;
+  --st-active: #dcb04a; --st-done: #58a97e; --st-rejected: #ef8a72;
+  --on-ink: #121317;
+  --hover: rgba(255, 255, 255, 0.045);
+}
 * { box-sizing: border-box; }
 body { font: 15px/1.55 system-ui, sans-serif; color: var(--ink); background: var(--wash);
        margin: 0; padding: 1.5rem; }
-a { color: #0b57d0; text-decoration: none; }
+a { color: var(--accent); text-decoration: none; }
 a:hover { text-decoration: underline; }
 
 header { display: flex; align-items: baseline; gap: 1rem; margin-bottom: 1.2rem; }
@@ -14,10 +60,14 @@ header h1 { font-size: 1.25rem; margin: 0; }
 
 .chip { display: inline-block; font-size: 0.72rem; padding: 0.05rem 0.45rem;
         border-radius: 99px; border: 1px solid var(--line); color: var(--dim); }
-.chip.high { border-color: #c4442a; color: #c4442a; }
-.chip.medium { border-color: #b58a00; color: #8a6900; }
+.chip.high { border-color: var(--high); color: var(--high); }
+.chip.medium { border-color: var(--medium-line); color: var(--medium); }
 .chip.low { border-color: var(--line); }
-.chip.rejected { border-color: #999; color: #777; text-decoration: line-through; }
+.chip.rejected { border-color: var(--faint); color: var(--faint-ink);
+                 text-decoration: line-through; }
+/* A human task is not the agent's to take, so it reads as a different kind of thing
+   rather than another shade of priority: filled, not outlined. */
+.chip.human { border-color: var(--human); background: var(--human); color: var(--on-human); }
 
 .board { display: grid; grid-template-columns: repeat(4, minmax(15rem, 1fr));
          gap: 1rem; align-items: start; }
@@ -28,7 +78,7 @@ header h1 { font-size: 1.25rem; margin: 0; }
 .card { display: block; width: 100%; text-align: left; font: inherit; color: inherit;
         cursor: pointer; background: var(--card); border: 1px solid var(--line);
         border-radius: 8px; padding: 0.6rem 0.75rem; margin-bottom: 0.6rem; }
-.card:hover { border-color: #0b57d0; }
+.card:hover { border-color: var(--accent); }
 .cardtitle { margin-bottom: 0.35rem; }
 .cardmeta { display: flex; flex-wrap: wrap; gap: 0.3rem; }
 
@@ -41,7 +91,7 @@ header h1 { font-size: 1.25rem; margin: 0; }
 .close { border: none; background: none; font-size: 1rem; color: var(--dim);
          cursor: pointer; padding: 0.3rem; }
 .close:hover { color: var(--ink); }
-.rejection { border-left: 3px solid #999; padding-left: 0.7rem; color: #555; }
+.rejection { border-left: 3px solid var(--faint); padding-left: 0.7rem; color: var(--dim); }
 
 .body h1 { font-size: 1.3rem; }
 .body h2 { font-size: 1.05rem; margin-top: 1.4rem; }
@@ -58,3 +108,64 @@ header h1 { font-size: 1.25rem; margin: 0; }
 @media (max-width: 60rem) {
   .board { grid-template-columns: 1fr 1fr; }
 }
+
+/* The view switch: two words, the current one filled. A segmented control rather than a
+   dropdown because there are exactly two views and both should be one click away. */
+.views { display: flex; border: 1px solid var(--line); border-radius: 99px; overflow: hidden; }
+.views button { border: 0; background: none; cursor: pointer; font: inherit;
+                font-size: 0.78rem; padding: 0.15rem 0.7rem; color: var(--dim); }
+.views button.on { background: var(--ink); color: var(--on-ink); }
+
+/* The list. Dense by intent — its whole reason to exist is seeing every task at once,
+   so rows are tight and only the title carries weight. */
+.listwrap { overflow-x: auto; }
+.list { width: 100%; border-collapse: collapse; font-size: 0.86rem; }
+.list th { text-align: left; font-weight: 500; font-size: 0.72rem; text-transform: uppercase;
+           letter-spacing: 0.06em; color: var(--dim); border-bottom: 1px solid var(--line);
+           padding: 0 0.6rem 0.4rem 0; white-space: nowrap; }
+.list td { border-bottom: 1px solid var(--line); padding: 0.35rem 0.6rem 0.35rem 0;
+           vertical-align: baseline; }
+.list tr:hover td { background: var(--hover); }
+.list .colnum { width: 3rem; color: var(--dim); font-variant-numeric: tabular-nums; }
+/* Finished and abandoned work stays readable but stops competing for attention. */
+.list tr.done .rowtitle, .list tr.rejected .rowtitle { color: var(--dim); }
+.rowtitle { border: 0; background: none; padding: 0; font: inherit; text-align: left;
+            cursor: pointer; color: inherit; }
+.rowtitle:hover { text-decoration: underline; }
+.list .chip { margin-left: 0.4rem; }
+
+/* The theme switch. A glyph rather than a word: it sits beside the view control, which
+   already carries the two words in the header, and a third pair would read as four
+   options rather than two-plus-a-preference. */
+.theme { border: 1px solid var(--line); background: none; cursor: pointer;
+         border-radius: 99px; width: 1.75rem; height: 1.75rem; line-height: 1;
+         font-size: 0.85rem; color: var(--dim); padding: 0; }
+.theme:hover { color: var(--ink); border-color: var(--dim); }
+
+/* Sortable headers. The arrow is always present — a glyph that only appears on the
+   active column leaves the others looking inert, and the whole point is that any of
+   them can be clicked. */
+.sorter { border: 0; background: none; padding: 0; font: inherit; cursor: pointer;
+          color: var(--dim); display: inline-flex; align-items: baseline; gap: 0.3rem;
+          text-transform: inherit; letter-spacing: inherit; }
+.sorter:hover { color: var(--ink); }
+.sorter.on { color: var(--ink); }
+.sorter .arrow { font-size: 0.65em; opacity: 0.35; }
+.sorter.on .arrow, .sorter:hover .arrow { opacity: 1; }
+
+/* Status as distance travelled. The track is the grey of a task not started; the fill
+   carries the colour of where it got to. */
+.progress { display: inline-block; width: 4.5rem; vertical-align: middle; }
+.progress .track { display: block; height: 0.4rem; border-radius: 99px;
+                   background: var(--track); overflow: hidden; }
+.progress .fill { display: block; height: 100%; border-radius: 99px; background: var(--dim); }
+.progress.active .fill { background: var(--st-active); }
+.progress.done .fill { background: var(--st-done); }
+.progress.rejected .fill { background: var(--st-rejected); opacity: 0.55; }
+
+/* A blocker is a chip you can press. It keeps the chip's shape so the meta line still
+   reads as one row of small facts, and gains the affordances of a control. */
+.blocker { cursor: pointer; font: inherit; font-size: 0.72rem; line-height: inherit;
+           background: none; color: var(--dim); }
+.blocker:hover { border-color: var(--accent); color: var(--accent); }
+.list .blocker + .blocker { margin-left: 0.3rem; }

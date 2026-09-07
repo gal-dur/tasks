@@ -5,6 +5,18 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>tasks</title>
   <link rel="stylesheet" href="./board.css">
+  <!-- Stamped before first paint, so a reader whose choice differs from their system
+       never sees one frame of the other theme. The stylesheet already follows the system
+       for the un-stamped case, so this script only has to speak when something is
+       stored — and if it fails, the page is still correct, just system-coloured. -->
+  <script>
+    try {
+      var chosen = localStorage.getItem("theme");
+      if (chosen === "light" || chosen === "dark") {
+        document.documentElement.dataset.theme = chosen;
+      }
+    } catch (e) { /* private mode, or storage disabled: the media query stands in */ }
+  </script>
 </head>
 <body>
   <div id="root"></div>

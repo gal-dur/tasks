@@ -28,7 +28,10 @@ type Task struct {
 	Size            string `json:"size,omitempty"`
 	DependsOn       []int  `json:"depends_on,omitempty"`
 	RejectionReason string `json:"rejection_reason,omitempty"`
-	Body            string `json:"body,omitempty"`
+	// IsHuman marks work only a person can do — a decision, an email, a signature.
+	// The board shows it; the skill forbids an agent from picking it up.
+	IsHuman bool   `json:"is_human,omitempty"`
+	Body    string `json:"body,omitempty"`
 }
 
 // The frontmatter carries only what git cannot — the same rule the task format
@@ -39,6 +42,7 @@ type frontmatter struct {
 	Size            string `yaml:"size"`
 	DependsOn       []int  `yaml:"depends_on"`
 	RejectionReason string `yaml:"rejection_reason"`
+	IsHuman         bool   `yaml:"is_human"`
 }
 
 // Load reads every task under root, freshly on every call. Sixty small files is not a
@@ -156,6 +160,7 @@ func parse(path, status string) (Task, error) {
 		}
 		task.Priority, task.Size = meta.Priority, meta.Size
 		task.DependsOn, task.RejectionReason = meta.DependsOn, meta.RejectionReason
+		task.IsHuman = meta.IsHuman
 		body = rest
 	}
 	task.Body = strings.TrimSpace(body)

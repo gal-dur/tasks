@@ -43,6 +43,7 @@ Frontmatter carries only what git cannot:
 priority: high | medium | low
 size: S | M | L          # optional, rough effort
 depends_on: [2, 4]       # optional, task numbers that must land first
+is_human: true           # optional, see below — an agent may never work this
 rejection_reason: ...    # required in tasks/rejected/, omitted everywhere else
 ---
 ```
@@ -54,6 +55,49 @@ started from, the cycle is the real finding, and it means the two tasks are one 
 the dependency is aspirational. Say so rather than recording it. A task may depend on one
 already in `done/`; that edge is satisfied, and worth keeping as the record of why the
 order was what it was.
+
+## Human tasks — `is_human: true`
+
+Some work is not the agent's at any price: sending an email, signing something, opening a
+browser to a site that refuses automation, spending money, or **deciding** — a preference
+nobody else can hold. These are ordinary tasks in the ordinary folders, marked
+`is_human: true`.
+
+**An agent must never pick up a human task. This is absolute, and it has no override
+short of the user editing the frontmatter.**
+
+Concretely:
+
+- **Never select one.** Asked for "the next task", or to choose work, skip every
+  `is_human: true` file as though it were not in `planned/` at all.
+- **Named explicitly, decline and explain.** If asked to "do task N" and N is human, say
+  what it is, say it is the user's, and offer the part that *is* yours — see below. Do not
+  start it and stop halfway; do not do "just the easy bit".
+- **Never move one to `done/`.** Only the user closes a human task, because only the user
+  knows whether the email was sent or the decision made. An agent moving it would be
+  asserting something it cannot know.
+- **Never mark an agent task `is_human`** to get out of doing it. The flag records who the
+  work belongs to, not how hard it is.
+
+What an agent *should* do with human tasks:
+
+- **Create them.** When work turns out to need a decision, an account, a signature or a
+  human hand, file it as a human task immediately rather than mentioning it in passing.
+  That is how the flag earns its keep.
+- **Prepare the ground.** Draft the email, list the options with a recommendation, gather
+  the facts the decision needs — then stop at the point where judgement or an account
+  takes over, and say plainly where the line was.
+- **Surface them.** When the user asks what is in flight, name the human tasks separately:
+  these are the ones nothing will move without them.
+- **Depend on them.** An agent task blocked on a decision should carry
+  `depends_on: [<human task>]`. That is the honest way to record "cannot start", and it
+  makes the board show what the whole queue is actually waiting on.
+
+**Unblocking is the user's word, not an inference.** A human task ends when the user says
+it does. When they do — "I've decided X", "sent it", "the account exists" — record the
+outcome in the task body, move it to `done/`, and only then start whatever depended on it.
+Never conclude from silence, from a commit, or from the work looking done that a human
+task has been completed.
 
 Body, in this order:
 
@@ -106,6 +150,10 @@ Keep the TODO list current *while* working, not in a tidy-up afterwards. A task 
 lags reality is worse than no task, because it is believed.
 
 ## Working a task
+
+**Check `is_human` before anything else.** A task marked `is_human: true` is never worked
+by an agent — not in a worktree, not partially, not "to save the user time". Decline, and
+offer the preparation that is yours instead.
 
 **Default to a git worktree for any task you implement.** One task, one worktree, one
 branch, merged back on green. It keeps the main checkout untouched — no stashing to switch
@@ -245,6 +293,10 @@ changed to justify the reversal.
 
 **Do not silently renumber, merge or delete tasks.** Superseded work is rejected with a
 reason pointing at what replaced it.
+
+**Never work, close, or quietly reinterpret a human task.** `is_human: true` means the
+work belongs to the user. Point at them, prepare what can be prepared, and wait to be told
+the outcome.
 
 **Report what was actually verified.** When handing back a finished task, state which
 checks ran and their result, whether a visible change was seen working, and anything that

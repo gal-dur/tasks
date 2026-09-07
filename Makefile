@@ -41,8 +41,18 @@ check: test
 
 # One fixed, user-owned destination: $HOME/bins. Putting it on PATH is the user's
 # call, and the install says so rather than editing anyone's shell profile.
+#
+# **Landed by rename, never written through.** The copy goes beside the target and is
+# renamed over it, which is atomic on one filesystem: an interrupted install leaves the
+# previous binary intact rather than a truncated file that still carries the execute bit.
+# The fresh inode is the second reason — replacing an executable's contents underneath a
+# path macOS has already validated can leave the kernel holding a stale code signature for
+# it, which presents as an immediate `Killed: 9` with nothing logged and no clue at the
+# call site. Renaming sidesteps both.
 install: build
-	@mkdir -p "$$HOME/bins" && cp bin/tasks "$$HOME/bins/tasks" && \
+	@mkdir -p "$$HOME/bins" && cp bin/tasks "$$HOME/bins/.tasks.new" && \
+	  chmod 0755 "$$HOME/bins/.tasks.new" && \
+	  mv -f "$$HOME/bins/.tasks.new" "$$HOME/bins/tasks" && \
 	  echo "tasks: installed to $$HOME/bins/tasks"; \
 	case ":$$PATH:" in \
 	  *":$$HOME/bins:"*) ;; \

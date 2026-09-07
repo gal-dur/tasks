@@ -26,8 +26,13 @@ if command -v sha256sum >/dev/null 2>&1; then sum="sha256sum"; else sum="shasum 
 (cd "$tmp" && grep " $asset\$" SHA256SUMS | $sum -c - >/dev/null) \
   || { echo "tasks: $asset failed its checksum; not installing" >&2; exit 1; }
 
+# Landed by rename, for the reason the Makefile's install target spells out: replacement
+# is then atomic, so an interrupted upgrade leaves the working binary rather than a
+# truncated one, and the new inode keeps macOS from holding a stale code signature for a
+# path it has already validated — which presents as `Killed: 9` with nothing logged.
 mkdir -p "$HOME/bins"
-install -m 0755 "$tmp/$asset" "$HOME/bins/tasks"
+install -m 0755 "$tmp/$asset" "$HOME/bins/.tasks.new"
+mv -f "$HOME/bins/.tasks.new" "$HOME/bins/tasks"
 echo "tasks: installed $("$HOME/bins/tasks" --version 2>/dev/null || echo tasks) to $HOME/bins/tasks"
 case ":$PATH:" in
   *":$HOME/bins:"*) ;;
