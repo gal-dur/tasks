@@ -266,6 +266,48 @@ type-checks only once both are present. Run the project's full check against the
 tree. If the squash conflicts, merge the shared branch *into* the task branch first,
 re-verify there, then squash clean.
 
+### When a subagent did the work
+
+A worktree-isolated subagent **cannot land its own commits** — the harness refuses it the
+shared checkout. So reviewing and landing is yours, and it is a real review rather than a
+formality: a subagent optimises for its own commits passing, which is not the same as the
+system being coherent.
+
+**Verify instead of believing.** The hand-back will say everything is green. Run the
+project's full check and the tests yourself, on the branch, before you read a word of its
+summary as fact. This costs one command and is the difference between reporting a result
+and repeating a claim.
+
+**Check the constraints you set.** Whatever you told it not to do — keep this file bare,
+do not weaken that test, stay out of that directory — check each one directly. A guard the
+subagent relaxed to make its work pass is the most expensive thing it can hand you, and it
+will not be mentioned.
+
+**Check the project's absolute rules**, whether or not you named them in the brief. The
+ones stated in `AGENTS.md` as inviolable apply to work you did not write, and a subagent
+that never read them can breach one in good faith.
+
+**Look for drift and for gaps.** Restructuring beyond the brief is not automatically wrong,
+but it must be *noticed and reported* rather than silently absorbed — the user asked for
+one thing and is receiving another. Then look for what the restructure left unwired: a
+subagent will happily land a coherent part that disconnects a whole it was not thinking
+about.
+
+**Surface what it did outside the repository.** Containers, volumes, databases, caches and
+ports are shared with everything else on the machine, and a subagent tidying up after
+itself can destroy state nobody authorised it to touch. Check what it says it ran, check
+what is actually still there, and **tell the user plainly and first** — before the work, not
+after it. Damage reported late reads as damage hidden.
+
+**Then land it, with the caveats in the commit message.** What the work does not yet do,
+and what it discovered that contradicts the task, belong in the message and in the task
+file — not only in a summary that scrolls away.
+
+**When briefing a subagent, name the destructive commands it may not run.** Telling it to
+share the project's warm caches also hands it the power to delete that project's data;
+`down -v`, `volume rm`, `db-reset` and their equivalents should be forbidden explicitly
+rather than left to its judgement.
+
 ### Clean up
 
 Remove the worktree once the commit has landed; keep it only if the user wants to return to
