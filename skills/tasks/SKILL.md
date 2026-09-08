@@ -156,8 +156,27 @@ by an agent — not in a worktree, not partially, not "to save the user time". D
 offer the preparation that is yours instead.
 
 **Default to a git worktree for any task you implement.** One task, one worktree, one
-branch, merged back on green. It keeps the main checkout untouched — no stashing to switch
-context — and it is what lets two tasks be in flight without editing each other's files.
+branch, landed on the shared branch when green. It keeps the main checkout untouched — no
+stashing to switch context — and it is what lets two tasks be in flight without editing
+each other's files.
+
+**A worktree is your scratch space, never a review surface.** Nobody else will open it.
+Asking someone to "look at the branch" is asking them to do something they will not do,
+so work that has not reached the shared branch has not been delivered — however finished
+it looks and however green its tests are.
+
+**A task is completed by a series of self-contained commits landing on the shared
+branch**, not by one branch that lands at the end. Each should be whole on its own terms:
+checked, additive, and leaving the shared branch working whether or not the rest of the
+task ever arrives. Land one as soon as it is whole — today, not when the task closes.
+A large squash is the right shape only when the work genuinely has no smaller whole in
+it, which is rarer than it feels while you are in the middle of it.
+
+Two things follow. Never end a session leaving substantial work only in a worktree —
+either land it, or say plainly that it is unlanded and why. And when a worktree has
+landed everything it holds, remove it and delete its branch: a worktree that outlives its
+work is a place for the next person to go looking for something that is already on the
+shared branch.
 
 The exception is honest: for a one-line fix on a clean tree, a worktree is ceremony. Judge
 by whether the work will survive a single sitting, not by the size of the diff you expect.
@@ -225,8 +244,9 @@ rest unticked, record superseded approaches in **Technical notes**, carry any la
 into `AGENTS.md`, and `git mv` the task into `tasks/done/`. This is the same lifecycle as
 above — it simply happens inside the worktree, as part of the work rather than after it.
 
-**One task, one commit, and no merge commits.** Commit as freely as you like *inside* the
-worktree — those are working notes, and nobody else will read them — but what reaches the
+**One commit per landing, and no merge commits.** A task that lands in three coherent
+increments is three commits, each whole on its own — not three commits of one unfinished
+thing. Commit as freely as you like *inside* the worktree — those are working notes, and nobody else will read them — but what reaches the
 shared branch is a single commit whose message names the task. The task file moving from
 `active/` to `done/` inside that same commit is what records that this was one task; a
 merge bubble would say the same thing less legibly, and it makes the history harder to read
